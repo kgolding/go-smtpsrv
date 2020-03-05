@@ -131,12 +131,19 @@ func mailProcessor(req *Request) error {
 		return req.TextProto.PrintfLine("%d %s", 501, "MAIL command must be immediately succeeded by 'FROM:'")
 	}
 	i := strings.Index(req.Line[1], ":")
-	if i < 0 || !emailRegExp.MatchString(req.Line[1][i+1:]) {
+
+	// Allow for broken clients that add a space in front of the address
+	emailaddress := strings.TrimSpace(req.Line[1][i+1:])
+	if len(emailaddress) == 0 && len(req.Line) > 2 {
+		emailaddress = req.Line[2]
+	}
+
+	if i < 0 || !emailRegExp.MatchString(emailaddress) {
 		return req.TextProto.PrintfLine("%d %s", 501, "MAIL command contained invalid address")
 	}
 
 	// extraxt the from email address
-	from := emailRegExp.FindStringSubmatch(req.Line[1][i+1:])[1]
+	from := emailRegExp.FindStringSubmatch(emailaddress)[1]
 	fromParts := strings.SplitN(from, "@", 2)
 
 	req.From = from
