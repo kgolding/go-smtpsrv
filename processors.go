@@ -170,10 +170,17 @@ func rcptProcessor(req *Request) error {
 		return req.TextProto.PrintfLine("%d %s", 501, "RCPT command must be immediately succeeded by 'TO:'")
 	}
 	i := strings.Index(req.Line[1], ":")
-	if i < 0 || !emailRegExp.MatchString(req.Line[1][i+1:]) {
+
+	// Allow for broken clients that add a space in front of the address
+	emailaddress := strings.TrimSpace(req.Line[1][i+1:])
+	if len(emailaddress) == 0 && len(req.Line) > 2 {
+		emailaddress = req.Line[2]
+	}
+
+	if i < 0 || !emailRegExp.MatchString(emailaddress) {
 		return req.TextProto.PrintfLine("%d %s", 501, "RCPT command contained invalid address")
 	}
-	to := emailRegExp.FindStringSubmatch(req.Line[1][i+1:])[1]
+	to := emailRegExp.FindStringSubmatch(emailaddress)[1]
 
 	if req.Server.Addressable != nil && !req.Server.Addressable(req.AuthUser, to) {
 		return req.TextProto.PrintfLine("%d %s", 501, "no such user - "+to)
